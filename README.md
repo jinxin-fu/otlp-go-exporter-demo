@@ -1,1 +1,1 @@
-# otlp-go-exporter-demo
+Opentelemetry-go SDK exporter demo
