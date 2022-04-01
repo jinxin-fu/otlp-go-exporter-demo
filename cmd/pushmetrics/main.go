@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
@@ -18,6 +19,7 @@ import (
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 )
@@ -55,7 +57,22 @@ func initProvider() func() {
 	return func() {}
 
 }
-
+func makeLabels(n int) []attribute.KeyValue {
+	used := map[string]bool{}
+	l := make([]attribute.KeyValue, n)
+	for i := 0; i < n; i++ {
+		var k string
+		for {
+			k = fmt.Sprint("k", rand.Intn(1000000000))
+			if !used[k] {
+				used[k] = true
+				break
+			}
+		}
+		l[i] = attribute.String(k, fmt.Sprint("v", rand.Intn(1000000000)))
+	}
+	return l
+}
 func main() {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
@@ -93,21 +110,21 @@ func main() {
 			otel.Handle(err)
 		}
 	}()
-	meter := global.Meter("test-meter")
+	meter := global.Meter("label-test-meter")
 	conter := metric.Must(meter).
 		NewFloat64Counter(
 			"an_important_metric_withlabel",
 			metric.WithDescription("Measures the cumulative epicness of the app"),
-		)
+		).Bind(attribute.String("counter_label", "11111111"))
 	for i := 0; i < 5; i++ {
 		log.Printf("Doing really hard work (%d /10)\n", i+1)
 		conter.Add(ctx, 1.0)
 	}
 
 	histogram := metric.Must(meter).NewFloat64Histogram(
-		"an_histogram_metric",
+		"an_histogram_metric_label",
 		metric.WithDescription("test demo for Histogram"),
-	).Bind(attribute.KeyValue{Key: "Histogram_with_label", Value: attribute.Value{}})
+	).Bind(makeLabels(5)...)
 	histogram.Record(ctx, 0.14)
 
 	log.Printf("Done!")
