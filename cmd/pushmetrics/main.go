@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -28,7 +29,7 @@ func initProvider() func() {
 
 	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint("192.168.1.31:30080"),
+		otlpmetricgrpc.WithEndpoint("192.168.1.51:4317"),
 		otlpmetricgrpc.WithReconnectionPeriod(50 * time.Millisecond),
 	}
 	client := otlpmetricgrpc.NewClient(opts...)
@@ -58,7 +59,7 @@ func initProvider() func() {
 func main() {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint("192.168.96.100:4371"), // opentelemetry-collector address
+		otlpmetricgrpc.WithEndpoint("192.168.1.51:4317"), // opentelemetry-collector address
 	)
 	ctx := context.Background()
 	exp, err := otlpmetric.New(ctx, client)
@@ -95,10 +96,10 @@ func main() {
 	meter := global.Meter("test-meter")
 	conter := metric.Must(meter).
 		NewFloat64Counter(
-			"an_important_metric",
+			"an_important_metric_withlabel",
 			metric.WithDescription("Measures the cumulative epicness of the app"),
 		)
-	for i := 0; i < 9; i++ {
+	for i := 0; i < 5; i++ {
 		log.Printf("Doing really hard work (%d /10)\n", i+1)
 		conter.Add(ctx, 1.0)
 	}
@@ -106,7 +107,7 @@ func main() {
 	histogram := metric.Must(meter).NewFloat64Histogram(
 		"an_histogram_metric",
 		metric.WithDescription("test demo for Histogram"),
-	)
+	).Bind(attribute.KeyValue{Key: "Histogram_with_label", Value: attribute.Value{}})
 	histogram.Record(ctx, 0.14)
 
 	log.Printf("Done!")
